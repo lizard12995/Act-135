@@ -1,0 +1,355 @@
+---
+title: "Act 135 Analysis and Mapping"
+author: "Lizzie Shackney"
+date: "2023-08-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(readxl)
+library(tidyverse)
+library(tidycensus)
+library(stringr)
+library(tidyr)
+library(leaflet)
+library(lubridate)
+library(sf)
+library(geojsonio)
+```
+
+## Read in data
+
+```{r cars}
+#Geocoded properties
+all_properties_geocoded <- read_xlsx('raw/Act135Properties_geocodio.xlsx') %>%
+  st_as_sf(coords = c("Longitude", "Latitude"), crs = 4326) 
+
+#Cases
+act135_cases <- read_xlsx('raw/Cases With Final Disposition.xlsx')
+
+#Redlining data
+redlining <- geojson_read('https://dsl.richmond.edu/panorama/redlining/static/downloads/geojson/PAPhiladelphia1937.geojson')
+
+#Displacement Risk Ratio
+drr_raw <- read.csv("raw/drr_bg_apr23.csv", colClasses=c("geoid"='character')) %>%
+  rename("GEOID"="geoid") %>%
+  select("GEOID", 
+         "DRR1516", "DRR1516C",
+         "DRR2122", "DRR2122C")
+```
+
+### Join geocoded data with Act 135 data
+
+```{r}
+
+all_properties_geocoded <- all_properties_geocoded %>%
+  left_join(act135_cases_uniquead, by = c("RecordMatch"="address"))
+
+```
+
+## Clean up Act 135 Property Data and Add Flags
+
+### First, human vs. non-human property ownership
+
+```{r}
+
+```
+
+### Next, heir's property
+
+```{r}
+
+```
+
+### Next, indicate when a petition spans multiple addresses
+
+```{r}
+
+```
+
+## Get ACS data
+
+block groups to match displacement data but maybe should just be tracts
+
+### For 2016
+
+```{r}
+
+
+bg.geo16 <- get_acs(geography = "block group",
+                       year = 2016,
+                       variables = "B03002_001",
+                       state = "PA",
+                       county = "Philadelphia",
+                       geometry = TRUE,
+                       cache = TRUE)
+
+bgs.acs16 <- get_acs(geography = "block group", 
+                        variables = c("B03002_001", # Total population
+                                      "B03002_003", # Total not hisp: white
+                                      "B03002_004", # Total not hisp: Black
+                                      
+                                      "B19013_001", # Median household income
+                                      "B19013A_001", # Median household income: white householder
+                                      "B19013B_001", # Median household income: Black householder
+                                      
+                                      "B25003_001", # Tenure
+                                      "B25003_002", # Tenure: owner-occupied
+                                      "B25003_003", # Tenure: renter-occupied
+                                      
+                                      "B25003A_003", #Tenure - renter-occupied - white non-H
+                                      
+                                      
+                                      "B25003B_001", # Tenure - total Black non-H
+                                      "B25003B_002", # Tenure: owner-occupied - Black non-H
+                                      "B25003B_003"), # Tenure: renter-occupied - Black non-H
+                        
+                        year = 2016, state = "PA", county = "Philadelphia", geometry = FALSE, 
+                        moe_level = "90", survey = "acs5") %>%
+  
+  pivot_wider(names_from = variable, values_from = c(estimate, moe)) %>%
+  
+  rename(totpop = estimate_B03002_001, # Total population
+         totnhisp_wh = estimate_B03002_003, # Total not hisp: white
+         totnhisp_bk = estimate_B03002_004, # Total not hisp: Black
+         
+         medhhinc = estimate_B19013_001, # Median household income
+         medhhinc_wh = estimate_B19013A_001, # Median household income: white householder
+         medhhinc_bk = estimate_B19013B_001, # Median household income: Black householder
+         
+         tenure = estimate_B25003_001, # tenure
+         ten_ownocc = estimate_B25003_002, # owner-occ
+         ten_renter = estimate_B25003_003, #renter-occ
+         w_ten_renter = estimate_B25003A_003, #renter-occ - white non-H
+         
+         b_tenure = estimate_B25003B_001, # tenure - Black non-H
+         b_ten_ownocc = estimate_B25003B_002, # owner-occ - Black non-H
+         b_ten_renter = estimate_B25003B_003, #renter-occ - Black non-H
+         
+         #MOE labeling
+         
+         moe_totpop = moe_B03002_001, # Total population
+         moe_totnhisp_wh = moe_B03002_003, # Total not hisp: white
+         moe_totnhisp_bk = moe_B03002_004, # Total not hisp: Black
+         
+         moe_medhhinc = moe_B19013_001, # Median household income
+         moe_medhhinc_wh = moe_B19013A_001, # Median household income: white householder
+         moe_medhhinc_bk = moe_B19013B_001, # Median household income: Black householder
+         
+         moe_tenure = moe_B25003_001, # tenure
+         moe_ten_ownocc = moe_B25003_002, # owner-occ
+         moe_ten_renter = moe_B25003_003,  # renter-occ
+         moe_w_ten_renter = moe_B25003A_003, #renter-occ - white non-H
+         
+         moe_b_tenure = moe_B25003B_001, # tenure - Black non-H
+         moe_b_ten_ownocc = moe_B25003B_002, # owner-occ - Black non-H
+         moe_b_ten_renter = moe_B25003B_003) %>% #renter-occ - Black non-H 
+  mutate(pct_black = round(totnhisp_bk/totpop*100,2),
+         moe_pct_black = round(moe_prop(totnhisp_bk,totpop, moe_totnhisp_bk, moe_totpop)*100,2),
+         pct_white_renter = round(w_ten_renter/ten_renter*100,2),
+         moe_white_renter = round(moe_prop(w_ten_renter,ten_renter, moe_w_ten_renter, moe_ten_renter)*100,2),
+         pct_bnh_renter = round(b_ten_renter/ten_renter*100,2),
+         moe_bnh_renter = round(moe_prop(b_ten_renter,ten_renter, moe_b_ten_renter, moe_ten_renter)*100,2))
+
+```
+
+### For 2022
+
+```{r}
+
+bg.geo21 <- get_acs(geography = "block group",
+                       year = 2021,
+                       variables = "B03002_001",
+                       state = "PA",
+                       county = "Philadelphia",
+                       geometry = TRUE,
+                       cache = TRUE)
+
+bgs.acs21 <- get_acs(geography = "block group", 
+                        variables = c("B03002_001", # Total population
+                                      "B03002_003", # Total not hisp: white
+                                      "B03002_004", # Total not hisp: Black
+                                      
+                                      "B19013_001", # Median household income
+                                      "B19013A_001", # Median household income: white householder
+                                      "B19013B_001", # Median household income: Black householder
+                                      
+                                      "B25003_001", # Tenure
+                                      "B25003_002", # Tenure: owner-occupied
+                                      "B25003_003", # Tenure: renter-occupied
+                                      
+                                      "B25003A_003", #Tenure - renter-occupied - white non-H
+                                      
+                                      
+                                      "B25003B_001", # Tenure - total Black non-H
+                                      "B25003B_002", # Tenure: owner-occupied - Black non-H
+                                      "B25003B_003"), # Tenure: renter-occupied - Black non-H
+                        
+                        year = 2021, state = "PA", county = "Philadelphia", geometry = FALSE, 
+                        moe_level = "90", survey = "acs5") %>%
+  
+  pivot_wider(names_from = variable, values_from = c(estimate, moe)) %>%
+  
+  rename(totpop = estimate_B03002_001, # Total population
+         totnhisp_wh = estimate_B03002_003, # Total not hisp: white
+         totnhisp_bk = estimate_B03002_004, # Total not hisp: Black
+         
+         medhhinc = estimate_B19013_001, # Median household income
+         medhhinc_wh = estimate_B19013A_001, # Median household income: white householder
+         medhhinc_bk = estimate_B19013B_001, # Median household income: Black householder
+         
+         tenure = estimate_B25003_001, # tenure
+         ten_ownocc = estimate_B25003_002, # owner-occ
+         ten_renter = estimate_B25003_003, #renter-occ
+         w_ten_renter = estimate_B25003A_003, #renter-occ - white non-H
+         
+         b_tenure = estimate_B25003B_001, # tenure - Black non-H
+         b_ten_ownocc = estimate_B25003B_002, # owner-occ - Black non-H
+         b_ten_renter = estimate_B25003B_003, #renter-occ - Black non-H
+         
+         #MOE labeling
+         
+         moe_totpop = moe_B03002_001, # Total population
+         moe_totnhisp_wh = moe_B03002_003, # Total not hisp: white
+         moe_totnhisp_bk = moe_B03002_004, # Total not hisp: Black
+         
+         moe_medhhinc = moe_B19013_001, # Median household income
+         moe_medhhinc_wh = moe_B19013A_001, # Median household income: white householder
+         moe_medhhinc_bk = moe_B19013B_001, # Median household income: Black householder
+         
+         moe_tenure = moe_B25003_001, # tenure
+         moe_ten_ownocc = moe_B25003_002, # owner-occ
+         moe_ten_renter = moe_B25003_003,  # renter-occ
+         moe_w_ten_renter = moe_B25003A_003, #renter-occ - white non-H
+         
+         moe_b_tenure = moe_B25003B_001, # tenure - Black non-H
+         moe_b_ten_ownocc = moe_B25003B_002, # owner-occ - Black non-H
+         moe_b_ten_renter = moe_B25003B_003) %>% #renter-occ - Black non-H 
+  mutate(pct_black = round(totnhisp_bk/totpop*100,2),
+         moe_pct_black = round(moe_prop(totnhisp_bk,totpop, moe_totnhisp_bk, moe_totpop)*100,2),
+         pct_white_renter = round(w_ten_renter/ten_renter*100,2),
+         moe_white_renter = round(moe_prop(w_ten_renter,ten_renter, moe_w_ten_renter, moe_ten_renter)*100,2),
+         pct_bnh_renter = round(b_ten_renter/ten_renter*100,2),
+         moe_bnh_renter = round(moe_prop(b_ten_renter,ten_renter, moe_b_ten_renter, moe_ten_renter)*100,2))
+```
+
+## Prep spatial data
+
+```{r}
+bgs16 <- bg.geo16 %>%
+  left_join(bgs.acs16) %>%
+  left_join(drr_raw) %>%
+  mutate(DRR1516C = replace_na(DRR1516C,'Insufficient Data'),
+         DRR2122C = replace_na(DRR2122C,'Insufficient Data'))
+
+bgs21 <- bg.geo21 %>%
+  left_join(bgs.acs21) %>%
+  left_join(drr_raw) %>%
+  mutate(DRR1516C = replace_na(DRR1516C,'Insufficient Data'),
+         DRR2122C = replace_na(DRR2122C,'Insufficient Data'))
+```
+
+## Mapping everything
+
+```{r}
+
+# content <- paste("<p> Tract:", tracts$GEOID , "<br>",
+#                  "Pct Black:", tracts$pct_black, "<br>",
+#                  "Median income:", tracts$medhhinc, "<br>",
+#                  "Population:", tracts$totpop
+# ) %>%
+#   lapply(htmltools::HTML)
+
+race21 <- colorNumeric(
+  palette = "viridis",
+  domain = bgs21$pct_black)
+
+race16 <- colorNumeric(
+  palette = "viridis",
+  domain = bgs16$pct_black)
+
+inc21 <- colorNumeric(
+  palette = "viridis",
+  domain = bgs21$medhhinc)
+
+inc16 <- colorNumeric(
+  palette = "viridis",
+  domain = bgs16$medhhinc)
+
+DRR22 <- colorFactor(
+  palette = "magma",
+  domain = bgs16$DRR2122C)
+
+DRR16 <- colorFactor(
+  palette = "magma",
+  domain = bgs21$DRR1516C)
+
+points_map <- leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addMapPane("polygons", zIndex = 410) %>%
+  addMapPane("point", zIndex = 420) %>%
+  addPolygons(data = bgs16,
+              stroke = TRUE,
+              weight = .5,
+              fillOpacity = .5,
+              color = ~race16(pct_black),
+              group = "% Black 2016",
+              options = pathOptions(pane="polygons")) %>%
+  addPolygons(data = bgs21,
+              stroke = TRUE,
+              weight = .5,
+              fillOpacity = .5,
+              color = ~race21(pct_black),
+              group = "% Black 2021",
+              options = pathOptions(pane="polygons")) %>%
+  addPolygons(data = bgs16,
+              stroke = TRUE,
+              weight = .5,
+              fillOpacity = .5,
+              color = ~inc16(medhhinc),
+              group = "Med HH Inc 2016",
+              options = pathOptions(pane="polygons")) %>%
+  addPolygons(data = bgs21,
+              stroke = TRUE,
+              weight = .5,
+              fillOpacity = .5,
+              color = ~inc21(medhhinc),
+              group = "Med HH Inc 2021",
+              options = pathOptions(pane="polygons")) %>%
+  addPolygons(data = bgs16,
+              stroke = TRUE,
+              weight = .5,
+              fillOpacity = .5,
+              color = ~DRR16(DRR1516C),
+              group = "DRR 2016",
+              options = pathOptions(pane="polygons")) %>%
+  addPolygons(data = bgs21,
+              stroke = TRUE,
+              weight = .5,
+              fillOpacity = .5,
+              color = ~DRR22(DRR2122C),
+              group = "DRR 2022",
+              options = pathOptions(pane="polygons")) %>%
+  addCircleMarkers(data = all_properties, radius = .5,
+                   options = pathOptions(pane="point")) %>%
+  addLayersControl(
+    baseGroups = c("% Black 2021", "% Black 2016", 
+                   "Med HH Inc 2021", "Med HH Inc 2016",
+                   "DRR 2016", "DRR 2022"),
+    options = layersControlOptions(collapsed = FALSE)) %>%
+  setView(lat = 39.94960, lng = -75.20723, zoom = 10) %>%
+  addLegend(data = bgs16, 
+            "bottomright", 
+            pal = race21,
+            values = ~pct_black,
+            title = "Percent Black") %>%
+  addLegend(data = bgs16, 
+            "bottomleft", 
+            pal = DRR22,
+            values = ~DRR2122C,
+            title = "DRR")
+
+points_map
+
+```
+
