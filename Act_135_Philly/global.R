@@ -198,8 +198,8 @@ human_properties_distinct_ppl <- all_properties_geocoded_flags %>%
 # human_properties2 <- all_properties_geocoded_flags %>%
 #   filter(resp_human)
 # #This is complete now
-# discrepancy_from_noah <- human_properties2 %>% #needs predicted race/ethnicity
-#   filter(is.na(race))
+discrepancy_from_noah <- human_properties2 %>% #needs predicted race/ethnicity
+  filter(is.na(race))
 
 #Calculate counts multiple times if someone has multiple properties
 human_properties_distinct_ppl %>%
