@@ -34,44 +34,42 @@ function(input, output, session) {
   
   point_data <- reactive({
 
-    if (input$points == "Entity Type" | input$points ==  "Human vs. Corporate Entities"
+    if (input$points == "Respondent Entity Type" | input$points ==  "Human vs. Corporate Respondents"
         | input$points == "Default") {
 
       all_properties_geocoded_flags
 
     }
-    else if (input$points == "Predicted Race or Ethnicity"){
+    else if (input$points == "Only Human Respondents"){
 
       all_properties_geocoded_flags %>%
-        filter(resp_human & !is.na(race))
+        filter(resp_human == "Human")
     }
 
   })
   
   observe({
-    if (input$points == "Entity Type" | input$points ==  "Human vs. Corporate Entities"
+    if (input$points == "Respondent Entity Type" | input$points ==  "Human vs. Corporate Respondents"
         | input$points == "Default") {
       
       content2 <<- paste("<p> Address:", all_properties_geocoded_flags$RecordMatch, "<br>",
                         "OPA Number:", all_properties_geocoded_flags$opanum, "<br>",
                         "Petitioner:", all_properties_geocoded_flags$petitioner, "<br>",
                         "Respondent:", all_properties_geocoded_flags$respondent, "<br>",
-                        "Respondent Entity Type:", all_properties_geocoded_flags$resp_entity, "<br>",
-                        "# of Properties:", all_properties_geocoded_flags$number_props, "<br>",
-                        "Predicted Ethnicity:", all_properties_geocoded_flags$race) %>%
+                        "Respondent Entity Type:", all_properties_geocoded_flags$resp_entity, "<br>"
+                        ) %>%
         lapply(htmltools::HTML)
       
       
     }
-    else if (input$points == "Predicted Race or Ethnicity"){
+    else if (input$points == "Only Human Respondents"){
       
-      content2 <<- paste("<p> Address:", human_properties$RecordMatch, "<br>",
-                        "OPA Number:", human_properties$opanum, "<br>",
-                        "Petitioner:", human_properties$petitioner, "<br>",
-                        "Respondent:", human_properties$respondent, "<br>",
-                        "Respondent Entity Type:", human_properties$resp_entity, "<br>",
-                        "# of Properties:", human_properties$number_props, "<br>",
-                        "Predicted Ethnicity:", human_properties$race) %>%
+      content2 <<- paste("<p> Address:", props_with_names$RecordMatch, "<br>",
+                        "OPA Number:", props_with_names$opanum, "<br>",
+                        "Petitioner:", props_with_names$petitioner, "<br>",
+                        "Respondent:", props_with_names$respondent, "<br>",
+                        "Respondent Entity Type:", props_with_names$resp_entity, "<br>"                        # , "<br>",
+                        ) %>%
         lapply(htmltools::HTML)
       
     }
@@ -81,7 +79,7 @@ function(input, output, session) {
   
     colorBy <<- input$points
     
-    if (colorBy == "Entity Type") {
+    if (colorBy == "Respondent Entity Type") {
       
       colorData <<- point_data()$resp_entity
 
@@ -91,7 +89,7 @@ function(input, output, session) {
       
     }
       
-      if (input$points == "Human vs. Corporate Entities") {
+      else if (input$points == "Human vs. Corporate Respondents" | input$points == "Only Human Respondents") {
         
         colorData <<- point_data()$resp_human
           
@@ -101,15 +99,6 @@ function(input, output, session) {
         
       }
       
-      else if (input$points == "Predicted Race or Ethnicity"){
-        
-        colorData <<- point_data()$race
-        
-        points_pal <<- colorFactor(
-          palette = c("#d7191c","#fc8d59","#99d594","#3288bd"),
-          domain = point_data()$race)
-        
-      }
   })
   
   observe({
@@ -122,7 +111,7 @@ function(input, output, session) {
         
         addCircleMarkers(data = point_data(),
                          color = "blue",
-                         fillOpacity = .4,
+                         fillOpacity = .6,
                          radius = 4,
                          stroke = TRUE,
                          weight = 1,
@@ -169,6 +158,7 @@ function(input, output, session) {
 
       poly_pal <<- colorFactor(
         palette = "magma",
+        reverse = TRUE,
         domain = colorData2)
 
     }
@@ -178,6 +168,7 @@ function(input, output, session) {
 
       poly_pal <<- colorFactor(
         palette = "magma",
+        reverse = TRUE,
         domain = colorData2)
 
     }

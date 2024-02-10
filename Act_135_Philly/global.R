@@ -163,7 +163,7 @@ all_properties_geocoded_flags <- all_properties_geocoded %>%
                                  TRUE ~ FALSE))
 
 props_with_names <- all_properties_geocoded_flags %>%
-  filter(!is.na(race) | resp_human)
+  filter(resp_human)
 
 write.csv(props_with_names, row.names = FALSE, "processed/properties_with_names.csv")
 
@@ -232,4 +232,119 @@ content2 <- paste("<p> Address:", all_properties_geocoded_flags$RecordMatch, "<b
   lapply(htmltools::HTML)
 
 
+bgs21$DRR2122C <- factor(bgs21$DRR2122C, ordered = TRUE, levels = c("Insufficient Data",
+                                                                    "Below Area Average",
+                                                                    "0.0 - 0.5",
+                                                                    "0.5 - 1.0",
+                                                                    "1.0 - 1.5",
+                                                                    "1.5 - 2.0",
+                                                                    "2.0 - 2.5",
+                                                                    "2.5 - 3.0",
+                                                                    "3.0 or Above"
+                                                                    ))
 
+bgs21$DRR1516C <- factor(bgs21$DRR1516C, ordered = TRUE, levels = c("Insufficient Data",
+                                                                    "Below Area Average",
+                                                                    "0.0 - 0.5",
+                                                                    "0.5 - 1.0",
+                                                                    "1.0 - 1.5",
+                                                                    "1.5 - 2.0",
+                                                                    "2.0 - 2.5",
+                                                                    "2.5 - 3.0",
+                                                                    "3.0 or Above"
+))
+
+all_properties_geocoded_flags <- all_properties_geocoded_flags %>%
+  mutate(resp_human = ifelse(resp_human, "Human", "Non-human"))
+
+
+# -----Static Maps------
+
+# All points and neighborhoods
+
+all_pts_nhd <- ggplot(neighborhoods_fort) +
+  geom_sf(alpha = .5) +
+  geom_sf(data = all_properties_geocoded_flags,
+          size = .2) +
+  ggtitle("Philadelphia Act 135 Properties",
+          subtitle = "Including Philadelphia neighborhood boundaries") +
+  theme_void() +
+  theme(panel.grid.major = element_line(colour = 'transparent'),
+        legend.margin = margin(0.3, 0.3, 0.3, 0.3, "cm"),
+        plot.margin = margin(0.4, 0.4, 0.4, 0.4, "cm"),
+        plot.title =element_text(family="AppleGothic", size=15, hjust = .5),
+        plot.subtitle = element_text(family="AppleGothic", size=10, hjust = .5),
+        legend.text = element_text(family="AppleGothic", size=8, hjust = .5))
+
+all_pts_nhd
+
+# All points and % nonwhite
+
+all_pts_nw <- ggplot(bgs21) +
+  geom_sf(aes(fill=pct_non_white),  alpha = .7, stroke = .3) +
+  geom_sf(data = all_properties_geocoded_flags,
+          size = .5,
+          color = "red") +
+  scale_fill_viridis_c(name = "Percent Non-White", alpha = .7, direction = -1) +
+  labs(title = "Philadelphia Act 135 Properties and\nPercent of Population Identifying as Non-White",
+          caption = "American Community Survey, 2021") +
+  theme_void() +
+  theme(panel.grid.major = element_line(colour = 'transparent'),
+        legend.margin = margin(0.3, 0.3, 0.3, 0.3, "cm"),
+        plot.margin = margin(0.4, 0.4, 0.4, 0.4, "cm"),
+        plot.title =element_text(family="AppleGothic", size=15, hjust = .5),
+        plot.subtitle = element_text(family="AppleGothic", size=10, hjust = .5),
+        plot.caption = element_text(family="AppleGothic", size=8, hjust = .5),
+        legend.text = element_text(family="AppleGothic", size=8, hjust = .5),
+        legend.title = element_text(family="AppleGothic", size=8, hjust = .5))
+
+all_pts_nw
+
+# All points and DRR
+
+all_pts_drr <- ggplot(bgs21) +
+  geom_sf(aes(fill=DRR2122C),
+          alpha = .7, stroke = .3) +
+  geom_sf(data = all_properties_geocoded_flags,
+          size = .5,
+          color = "red") +
+  ggtitle("Philadelphia Act 135 Properties and\nBlock Group Displacement Risk Ratio, 2021") +
+  scale_fill_brewer(name = "Displacement Risk Ratio", palette = 3, direction = 1) +
+  theme_void() +
+  theme(panel.grid.major = element_line(colour = 'transparent'),
+        legend.margin = margin(0.3, 0.3, 0.3, 0.3, "cm"),
+        plot.margin = margin(0.4, 0.4, 0.4, 0.4, "cm"),
+        plot.title =element_text(family="AppleGothic", size=15, hjust = .5),
+        plot.subtitle = element_text(family="AppleGothic", size=10, hjust = .5),
+        legend.text = element_text(family="AppleGothic", size=8),
+        legend.title = element_text(family="AppleGothic", size=10))
+
+all_pts_drr
+
+# Predicted Rethnicity and neighorhoods
+
+predicted_rethnicity <- ggplot(all_properties_geocoded_flags %>%
+                                        filter(!is.na(race))) +
+  geom_sf(data = bgs21, alpha = .5) +
+  geom_sf(aes(color = race), size = 1.5, stroke = .5) +
+  labs(title = "Predicted Race or Ethnicity of Property Owner",
+       subtitle = "For all non-corporate Act 135 properties",
+       color = "Predicted Race or Ethnicity") +
+  theme_void() +
+  theme(panel.grid.major = element_line(colour = 'transparent'),
+        legend.margin = margin(0.3, 0.3, 0.3, 0.3, "cm"),
+        plot.margin = margin(0.4, 0.4, 0.4, 0.4, "cm"),
+        plot.title =element_text(family="AppleGothic", size=15, hjust = .5),
+        plot.subtitle = element_text(family="AppleGothic", size=10, hjust = .5),
+        legend.text = element_text(family="AppleGothic", size=8),
+        legend.title = element_text(family="AppleGothic", size=10))
+
+predicted_rethnicity
+
+ggsave('plots/predicted_rethnicity.jpeg', predicted_rethnicity, scale = 1, width = 7, units = "in", dpi = 500)
+
+ggsave('plots/all_pts_drr.jpeg', all_pts_drr, scale = 1, width = 7, units = "in", dpi = 500)
+
+ggsave('plots/all_pts_nw.jpeg', all_pts_nw, scale = 1, width = 7, units = "in", dpi = 500)
+
+ggsave('plots/all_pts_nhd.jpeg', all_pts_nhd, scale = 1, width = 7, units = "in", dpi = 500)

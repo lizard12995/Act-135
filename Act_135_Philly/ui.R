@@ -1,6 +1,4 @@
 
-  # Application title
-  
   #--------Create application with two tabs-------
   fluidPage(theme = shinytheme("united"),
             shinyjs::useShinyjs(),
@@ -16,9 +14,9 @@
                                        "Select Petition Data",
                           
                                        choices = c("Default",
-                                         "Entity Type",
-                                                   "Human vs. Corporate Entities",
-                                                   "Predicted Race or Ethnicity")),
+                                         "Respondent Entity Type",
+                                                   "Human vs. Corporate Respondents",
+                                                   "Only Human Respondents")),
                            
                            selectInput("polygons",
                                        
