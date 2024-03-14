@@ -1,7 +1,50 @@
 
 
 
-POLYGON DATA
+#put together final dataset
+all_properties_geocoded <- all_properties_geocoded3 %>%
+  #apg3 = 524 records 
+  #(more than act135 because I separated out properties with multiple addresses)
+  
+  #remove ACS variables
+  select(-contains("ACS")) %>%
+  
+  #there are 577 act135 cases
+  #joining geocoded addresses with the act135 filings based on address match
+  left_join(act135_cases, by = c("RecordMatch"="address"), relationship = "many-to-many") %>%
+  
+  #when we join names, it takes us to 585 (some duplicates where there are diff respondent names)
+  #names has 381
+  left_join(names, by = "docketnum", relationship = "many-to-many") %>%
+  #and 382 join on a docketnum
+  
+  #discrepancies has 19
+  left_join(discrepancies, by = "opanum", relationship = "many-to-many") %>%
+  #and 18 join on an opanum
+  
+  #fix some variable issues that come up in the join
+  mutate(respondent = coalesce(respondent, respondent.x, respondent.y)) %>%
+  select(-respondent.x, -respondent.y)%>%
+  rename(c("race" = "race.x")) %>%
+  mutate(race = coalesce(race, race.y),
+         race = str_to_title(race),
+         respondent_first = coalesce(respondent_first.x, respondent_first.y),
+         respondent_last = coalesce(respondent_last.x,respondent_last.y),
+         prob_asian = coalesce(prob_asian.x, prob_asian.y),
+         prob_black = coalesce(prob_black.x, prob_black.y), 
+         prob_white = coalesce(prob_white.x, prob_white.y), 
+         prob_hispanic = coalesce(prob_hispanic.x, prob_hispanic.y)
+  ) %>%
+  select(-respondent_last.x, -respondent_first.x, -respondent_last.y, -respondent_first.y,
+         -race.y, -prob_asian.x, -prob_asian.y, -prob_black.x, -prob_black.y, -prob_white.x, -prob_white.y,
+         -prob_hispanic.x, -prob_hispanic.y
+  ) %>%
+  arrange(race) %>%
+  
+  #keep distinct opanums (should be no duplicate properties)
+  distinct(opanum, substr(RecordMatch, 0, 3), .keep_all = TRUE)
+
+#POLYGON DATA
 
 DRR22 <- colorFactor(
   palette = "magma",
@@ -378,3 +421,181 @@ points_map
 #
 # x <- x %>%
 #   filter(id %in% z)
+
+
+
+
+# #----OLD DATA & NAME ANALYSIS---
+#       
+#       #Geocoded properties
+#       all_properties_geocoded3 <- read_xlsx('~/Documents/GitHub/Act-135/old_raw/Act135Properties_geocodio.xlsx') %>%
+#         st_as_sf(coords = c("Longitude", "Latitude"), crs = 4326) 
+#       
+#       #Cases
+#       #Distinct OPA number may keep out a few...
+#       act135_cases <- read_xlsx('~/Documents/GitHub/Act-135/old_raw/Cases With Final Disposition.xlsx') %>%
+#         group_by(opanum) %>%
+#         mutate(opanum_count = n()) %>%
+#         ungroup() 
+#       
+#       #Names - Noah's initial list
+#       names <- read_xlsx('~/Documents/GitHub/Act-135/old_raw/noah_names.xlsx') %>%
+#         select(c(docketnum,respondent_first,respondent_last)) %>%
+#         left_join(act135_cases, by = "docketnum") %>%
+#         select(c(docketnum,opanum,respondent_first,respondent_last,respondent))
+#       
+#       #get rethnicity predictions:
+#       lastnames <- names$respondent_last
+#       firstnames <- names$respondent_first
+#       predicted_eths3 <<- predict_ethnicity(firstnames = firstnames, lastnames = lastnames,
+#                                            method = "fullname")
+#       
+#       #join back together
+#       names <- names %>%
+#         left_join(predicted_eths3, by = c("respondent_first" = "firstname", "respondent_last" = "lastname"),
+#                   relationship = "many-to-many") %>%
+#         distinct(respondent_first, respondent_last, .keep_all = TRUE) %>%
+#         select(docketnum, race, respondent_first, respondent_last, respondent, prob_asian,
+#                prob_black, prob_white, prob_hispanic)
+#       
+#       #Names that were missing from Noah's initial dataset
+#       discrepancies <- read_xlsx('~/Documents/GitHub/Act-135/old_raw/discrepancies.xlsx') %>%
+#         filter(!is.na(respondent_first)) %>%
+#         distinct(respondent_first, respondent_last, .keep_all = TRUE)
+#       
+#       lastnames2 <- discrepancies$respondent_last
+#       firstnames2 <- discrepancies$respondent_first
+#       predicted_eths2 <<- predict_ethnicity(firstnames = firstnames2, lastnames = lastnames2,
+#                                             method = "fullname")
+#       
+#       #Merge predictions back together with name data
+#       discrepancies <- discrepancies %>%
+#         left_join(predicted_eths2, by = c("respondent_first" = "firstname", "respondent_last" = "lastname")) %>%
+#         mutate(opanum = as.character(opanum)) %>%
+#         filter(!is.na(race)) %>%
+#         distinct(respondent_first, respondent_last, .keep_all = TRUE) %>%
+#         select(respondent, opanum, race, respondent_first, respondent_last,`Nature of error`, prob_asian,
+#                prob_black, prob_white, prob_hispanic)
+#       
+#       #put together final dataset
+#       COMPARE <- all_properties_geocoded3 %>%
+#         #apg3 = 524 records 
+#         #(more than act135 because I separated out properties with multiple addresses)
+#         
+#         #remove ACS variables
+#         select(-contains("ACS")) %>%
+#         
+#         #there are 577 act135 cases
+#         #joining geocoded addresses with the act135 filings based on address match
+#         left_join(act135_cases, by = c("RecordMatch"="address"), relationship = "many-to-many") %>%
+#         
+#         #when we join names, it takes us to 585 (some duplicates where there are diff respondent names)
+#         #names has 381
+#         left_join(names, by = "docketnum", relationship = "many-to-many") %>%
+#         #and 382 join on a docketnum
+#         
+#         #discrepancies has 19
+#         left_join(discrepancies, by = "opanum", relationship = "many-to-many") %>%
+#         #and 18 join on an opanum
+#         
+#         #fix some variable issues that come up in the join
+#         mutate(respondent = coalesce(respondent, respondent.x, respondent.y)) %>%
+#         select(-respondent.x, -respondent.y)%>%
+#         rename(c("race" = "race.x")) %>%
+#         mutate(race = coalesce(race, race.y),
+#                race = str_to_title(race),
+#                respondent_first = coalesce(respondent_first.x, respondent_first.y),
+#                respondent_last = coalesce(respondent_last.x,respondent_last.y),
+#                prob_asian = coalesce(prob_asian.x, prob_asian.y),
+#                prob_black = coalesce(prob_black.x, prob_black.y), 
+#                prob_white = coalesce(prob_white.x, prob_white.y), 
+#                prob_hispanic = coalesce(prob_hispanic.x, prob_hispanic.y)
+#         ) %>%
+#         select(-respondent_last.x, -respondent_first.x, -respondent_last.y, -respondent_first.y,
+#                -race.y, -prob_asian.x, -prob_asian.y, -prob_black.x, -prob_black.y, -prob_white.x, -prob_white.y,
+#                -prob_hispanic.x, -prob_hispanic.y
+#         ) %>%
+#         arrange(race) %>%
+#         
+#         #keep distinct opanums (should be no duplicate properties)
+#         distinct(opanum, substr(RecordMatch, 0, 3), .keep_all = TRUE) %>%
+#         distinct(respondent_first, respondent_last, .keep_all = TRUE)
+#       
+#       rm(all_properties_geocoded3,discrepancies, lastnames, lastnames2, firstnames, firstnames2,
+#          names, predicted_eths, predicted_eths2, act135_cases)
+#       
+#       COMPARE %>%
+#         filter(!is.na(race)) %>%
+#         tabyl(race) %>%
+#         adorn_totals() %>%
+#         adorn_pct_formatting()
+#       
+# #----COMPARISON----
+#       
+# old_COMPARE <- COMPARE %>%
+#   select(docketnum, respondent, respondent_first, respondent_last, race) %>%
+#         st_drop_geometry()
+# 
+# new_COMPARE <- all_properties_geocoded %>%
+#   select(docketnum, respondent, FIRST, LAST, race, dfiled) 
+# 
+# BOTH <- new_COMPARE %>%
+#   left_join(old_COMPARE, by = "docketnum") %>%
+#   mutate(same_race = ifelse(str_to_upper(race.x) == str_to_upper(race.y), TRUE,FALSE),
+#          same_name = ifelse(LAST == respondent_last, TRUE,FALSE))
+
+#test
+# points_map <- leaflet() %>%
+#   addProviderTiles(providers$CartoDB.Positron) %>%
+#   addCircleMarkers(data = geocoded_docket_opa,
+#                    fillOpacity = 1,
+#                    radius = 5,
+#                    stroke = TRUE,
+#                    weight = 1,
+#                    color = "black") 
+# 
+# points_map
+
+
+##-----Prediction thresholds----
+
+##looking at analyzing based on the threshold probability of race predictions
+# all_properties_race_threshold <- all_properties_geocoded %>%
+#   mutate(probability = case_when(race == "White" ~ prob_white,
+#                                  race == "Black" ~ prob_black,
+#                                  race == "Asian" ~ prob_asian,
+#                                  race == "Hispanic" ~ prob_hispanic,
+#                                is.na(race) ~ NA),
+#          meets_threshold = ifelse(probability>.75,TRUE,FALSE)) %>%
+#   select(-prob_white, -prob_black, -prob_asian, -prob_hispanic)
+
+# all_properties_race_threshold %>%
+#   filter(!is.na(race) & meets_threshold) %>%
+#   tabyl(race) %>%
+#   adorn_totals() %>%
+#   adorn_pct_formatting()
+
+# mean(all_properties_race_threshold$probability, na.rm = TRUE)
+
+
+#-----Properties spanning multiple addresses-----
+
+# #did not do anything with this but it is one way of assigning more weight to properties that span multiple addresses
+# all_properties_geocoded_flags <- all_properties_geocoded_flags %>%
+#   mutate(multi = case_when(grepl("6703-6703R", RecordMatch) ~ FALSE,
+#     grepl("-", RecordMatch) ~ TRUE,
+#                            TRUE ~ FALSE))
+# 
+# all_properties_geocoded_flags <- all_properties_geocoded_flags %>%
+#   mutate(numbers = str_extract(RecordMatch, "\\d+-\\d+"),
+#                  numero1 = str_extract(numbers, "\\d+-"),
+#                  numero2 = str_extract(numbers, "-\\d+"),
+#                  numero1 = str_remove(numero1, "-"),
+#                  numero2 = as.numeric(str_remove(numero2, "-")),
+#                  numero1 = as.numeric(case_when(nchar(numero2)<=2 ~ str_sub(numero1,-2,-1),
+#                                      nchar(numero2)>2 ~ numero1)),
+#                  number_props = (numero2 - numero1)/2,
+#          number_props = replace_na(number_props,1),
+#          number_props = if_else(number_props == 0, 1, number_props)) %>%
+#           select(-numbers, -numero1, -numero2)
+

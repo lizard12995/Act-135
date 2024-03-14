@@ -25,6 +25,7 @@ function(input, output, session) {
     
       addMapPane("polygons", zIndex = 410) %>%
       addMapPane("nbrhd", zIndex = 420) %>%
+      addMapPane("cds", zIndex = 425) %>%
       addMapPane("point", zIndex = 430) 
 
   })
@@ -52,7 +53,7 @@ function(input, output, session) {
     if (input$points == "Respondent Entity Type" | input$points ==  "Human vs. Corporate Respondents"
         | input$points == "Default") {
       
-      content2 <<- paste("<p> Address:", all_properties_geocoded_flags$RecordMatch, "<br>",
+      content2 <<- paste("<p> Address:", all_properties_geocoded_flags$address, "<br>",
                         "OPA Number:", all_properties_geocoded_flags$opanum, "<br>",
                         "Petitioner:", all_properties_geocoded_flags$petitioner, "<br>",
                         "Respondent:", all_properties_geocoded_flags$respondent, "<br>",
@@ -64,7 +65,7 @@ function(input, output, session) {
     }
     else if (input$points == "Only Human Respondents"){
       
-      content2 <<- paste("<p> Address:", props_with_names$RecordMatch, "<br>",
+      content2 <<- paste("<p> Address:", props_with_names$address, "<br>",
                         "OPA Number:", props_with_names$opanum, "<br>",
                         "Petitioner:", props_with_names$petitioner, "<br>",
                         "Respondent:", props_with_names$respondent, "<br>",
@@ -151,7 +152,7 @@ function(input, output, session) {
   observe({
 
     colorBy2 <<- input$polygons
-  
+
     if (colorBy2 == "Displacement Risk Ratio 2016") {
 
       colorData2 <<- bgs21$DRR1516C
@@ -196,20 +197,34 @@ function(input, output, session) {
   
   observe({
     
-    if(input$polygons == "Neighborhoods"){
+    # if(input$polygons == "Neighborhoods"){
+    # 
+    # leafletProxy("map") %>%
+    # 
+    #   clearShapes() %>%
+    #   clearControls() %>%
+    #   
+    #   addPolygons(data = neighborhoods,
+    #               stroke = TRUE,
+    #               weight = 1,
+    #               fillOpacity = 0,
+    #               label = neighborhoods@data$mapname,
+    #               options = pathOptions(pane="nbrhd"))}
+    
+    if(input$polygons == "Council Districts"){
 
-    leafletProxy("map") %>%
+      leafletProxy("map") %>%
 
-      clearShapes() %>%
-      clearControls() %>%
-      
-      addPolygons(data = neighborhoods,
-                  stroke = TRUE,
-                  weight = 1,
-                  fillOpacity = 0,
-                  label = neighborhoods@data$mapname,
-                  options = pathOptions(pane="nbrhd"),
-                  group = "neighborhoods")}
+        clearShapes() %>%
+        clearControls() %>%
+
+        addPolygons(data = cds,
+                    stroke = TRUE,
+                    weight = 1,
+                    fillOpacity = 0,
+                    label = cds$DISTRICT,
+                    options = pathOptions(pane="cds"))
+                    }
     
     else{
       leafletProxy("map") %>%

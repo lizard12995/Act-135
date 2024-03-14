@@ -5,9 +5,8 @@ account: eshackney
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 9765466
-bundleId: 7918992
+bundleId: 8292976
 url: https://eshackney.shinyapps.io/Act_135_Philly/
-when: 1699844858.97732
-lastSyncTime: 1699844858.97734
 asMultiple: FALSE
 asStatic: FALSE
+ignoredFiles: old.R|plots/all_pts_cds.jpeg|plots/all_pts_drr.jpeg|plots/all_pts_nhd.jpeg|plots/all_pts_nw.jpeg|plots/predicted_rethnicity.jpeg|processed/properties_with_names.csv|raw2/opa_properties_public.csv|static_maps_analytics.R
