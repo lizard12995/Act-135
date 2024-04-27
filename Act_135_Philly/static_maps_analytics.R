@@ -98,11 +98,19 @@ geocoded_docket_opa_withnames <- geocoded_docket_opa %>%
 
 ##-----NAME ANALYSIS -----
 
-geocoded_docket_opa_withnames[48,7] <- "O'MALLEY"
-geocoded_docket_opa_withnames[177,7] <- "O'CONNELL"
-geocoded_docket_opa_withnames[368,7] <- "KELLAM"
-geocoded_docket_opa_withnames[100,7] <- "MICHAEL"
-geocoded_docket_opa_withnames[117,7] <- "HOWARD"
+geocoded_docket_opa_withnames[48,8] <- "O'MALLEY"
+geocoded_docket_opa_withnames[177,8] <- "O'CONNELL"
+geocoded_docket_opa_withnames[368,8] <- "KELLAM"
+
+geocoded_docket_opa_withnames[20,9] <-"ERDIS"
+geocoded_docket_opa_withnames[23,9] <- "JAMES"
+geocoded_docket_opa_withnames[34,9] <-"EMERY"
+geocoded_docket_opa_withnames[86,9] <-"LOUIS"
+geocoded_docket_opa_withnames[98,9] <- "MICHAEL"
+geocoded_docket_opa_withnames[100,9] <- "MICHAEL"
+geocoded_docket_opa_withnames[115,9] <-"HOWARD"
+geocoded_docket_opa_withnames[275,9] <-"HERBERT"
+geocoded_docket_opa_withnames[395,9] <-"ANNA"
 
 # get rethnicity predictions:
 lastnames <- trimws(geocoded_docket_opa_withnames$LAST)
@@ -173,6 +181,12 @@ props_with_names <- all_properties_geocoded_flags %>%
 single_opa <- all_properties_geocoded_flags %>%
   distinct(opanum, .keep_all = TRUE)
 
+#post-amendments
+all_properties_geocoded_flags %>%
+  filter(as.Date(dfiled) <= '2015-01-01') %>%
+  st_drop_geometry() %>%
+  summarise(count = n())
+
 #QUICK STATS
 sum(single_opa$heir)
 sum(single_opa$person_and_other)
@@ -214,16 +228,34 @@ all_properties_geog %>%
 all_properties_petitioner <- all_properties_geog2 %>%
   select(dfiled, petitioner, DISTRICT,resp_human) %>%
   mutate(turco = str_detect(petitioner, "SCIOLI"),
-         pcdc = str_detect(petitioner, "PHILADELPHIA COMMUNITY DEVELOPMENT COALITION"))
+         pcdc = str_detect(petitioner, "PHILADELPHIA COMMUNITY DEVELOPMENT COALITION"),
+         big_2 = ifelse(turco == TRUE | pcdc == TRUE, "ST or PCDC", "Other"))
 
-sum(all_properties_petitioner$turco) + sum(all_properties_petitioner$pcdc)
 
-all_properties_petitioner %>%
+all_properties_petitioner2 <- all_properties_geocoded_flags %>%
+  mutate(turco = str_detect(petitioner, "SCIOLI"),
+         pcdc = str_detect(petitioner, "PHILADELPHIA COMMUNITY DEVELOPMENT COALITION"),
+         barr = str_detect(petitioner, "GLOBAL GIVINGS |TULPEHOCKEN|710 N 42ND"),
+         commgrowth = str_detect(petitioner, "PHILADELPHIA COMMUNITY GROWTH"),
+         nd = str_detect(petitioner, "NEIGHBORHOOD DEVELOPMENT PARTNERSHIP"),
+         airy = str_detect(petitioner, "MT. AIRY"),
+         williams = str_detect(petitioner, "JAMAR"),
+         big_2 = ifelse(turco == TRUE | pcdc == TRUE, "ST or PCDC", "Other"))
+
+sum(all_properties_petitioner2$turco)
+sum(all_properties_petitioner2$pcdc)
+sum(all_properties_petitioner2$barr)
+sum(all_properties_petitioner2$commgrowth)
+sum(all_properties_petitioner2$nd)
+sum(all_properties_petitioner2$airy)
+sum(all_properties_petitioner2$williams)
+
+count <- all_properties_petitioner2 %>%
   st_drop_geometry() %>%
   group_by(petitioner) %>%
   summarise(count = n()) %>%
-  filter(count >=5) %>%
-  arrange(count)
+  #filter(count >=5) %>%
+  arrange(count, descending = TRUE)
 
 #phl community growth = keith regan
 #global givings = Ephraim Barr - also owns 1940 N Hollywood LLC, 710 N 42nd LLC, 1537 Tulpehocken LLC
@@ -342,6 +374,27 @@ all_pts_cds <- ggplot(cds) +
         plot.subtitle = element_text(family="AppleGothic", size=10, hjust = .5),
         legend.text = element_text(family="AppleGothic", size=8, hjust = .5))
 
+
+all_pts_petitioner$big_2 <- as.factor(all_pts_petitioner$big_2)
+
+all_pts_petitioner <- ggplot(cds) +
+  geom_sf(alpha = .5) +
+  geom_sf(data = all_properties_petitioner,
+          aes(color = big_2),
+          size = .7) +
+  ggtitle("Philadelphia Act 135 Properties",
+          subtitle = "Including Philadelphia Council Districts") +
+  theme_void() +
+  theme(panel.grid.major = element_line(colour = 'transparent'),
+        legend.margin = margin(0.3, 0.3, 0.3, 0.3, "cm"),
+        plot.margin = margin(0.4, 0.4, 0.4, 0.4, "cm"),
+        plot.title =element_text(family="AppleGothic", size=15, hjust = .5),
+        plot.subtitle = element_text(family="AppleGothic", size=10, hjust = .5),
+        legend.text = element_text(family="AppleGothic", size=8, hjust = .5))
+
+all_pts_petitioner
+
+
 all_pts_nhd <- ggplot(neighborhoods_fort) +
   geom_sf(alpha = .5) +
   geom_sf(data = all_properties_geocoded_flags,
@@ -386,7 +439,7 @@ all_pts_drr <- ggplot(bgs21) +
   geom_sf(aes(fill=DRR2122C),
           alpha = .7, stroke = .3) +
   geom_sf(data = all_properties_geocoded_flags,
-          size = .4,
+          size = .6,
           color = "red") +
   ggtitle("Philadelphia Act 135 Properties and\nBlock Group Displacement Risk Ratio, 2021") +
   scale_fill_brewer(name = "Displacement Risk Ratio", palette = 3, direction = 1) +
@@ -396,10 +449,10 @@ all_pts_drr <- ggplot(bgs21) +
         plot.margin = margin(0.4, 0.4, 0.4, 0.4, "cm"),
         plot.title =element_text(family="AppleGothic", size=15, hjust = .5),
         plot.subtitle = element_text(family="AppleGothic", size=10, hjust = .5),
-        legend.text = element_text(family="AppleGothic", size=8),
-        legend.title = element_text(family="AppleGothic", size=10))
+        legend.text = element_text(family="AppleGothic", size=12),
+        legend.title = element_text(family="AppleGothic", size=14))
 
-# all_pts_drr
+all_pts_drr
 
 # Predicted Rethnicity and neighorhoods
 
@@ -416,17 +469,101 @@ predicted_rethnicity <- ggplot(all_properties_geocoded_flags %>%
         plot.margin = margin(0.4, 0.4, 0.4, 0.4, "cm"),
         plot.title =element_text(family="AppleGothic", size=15, hjust = .5),
         plot.subtitle = element_text(family="AppleGothic", size=10, hjust = .5),
-        legend.text = element_text(family="AppleGothic", size=8),
-        legend.title = element_text(family="AppleGothic", size=10))
+        legend.text = element_text(family="AppleGothic", size=10),
+        legend.title = element_text(family="AppleGothic", size=12))
 
 predicted_rethnicity
 
-ggsave('plots/predicted_rethnicity.jpeg', predicted_rethnicity, scale = 1, width = 7, units = "in", dpi = 500)
+ggsave('plots/predicted_rethnicity.jpeg', predicted_rethnicity, scale = 1, width = 10, units = "in", dpi = 500)
 
-ggsave('plots/all_pts_drr.jpeg', all_pts_drr, scale = 1, width = 7, units = "in", dpi = 500)
+ggsave('plots/all_pts_drr.jpeg', all_pts_drr, scale = 1, width = 10, units = "in", dpi = 500)
 
-ggsave('plots/all_pts_nw.jpeg', all_pts_nw, scale = 1, width = 7, units = "in", dpi = 500)
+ggsave('plots/all_pts_nw.jpeg', all_pts_nw, scale = 1, width = 10, units = "in", dpi = 500)
 
-ggsave('plots/all_pts_cds.jpeg', all_pts_cds, scale = 1, width = 7, units = "in", dpi = 500)
+ggsave('plots/all_pts_cds.jpeg', all_pts_cds, scale = 1, width = 10, units = "in", dpi = 500)
 
-ggsave('plots/all_pts_nhd.jpeg', all_pts_nhd, scale = 1, width = 7, units = "in", dpi = 500)
+ggsave('plots/all_pts_nhd.jpeg', all_pts_nhd, scale = 1, width = 10, units = "in", dpi = 500)
+
+
+#----Graphs and additional maps for presentation----
+
+table_1<-read_excel("~/Documents/GitHub/Act-135/Act_135_Philly/raw/table_1.xlsx")
+table_2<-read_excel("~/Documents/GitHub/Act-135/Act_135_Philly/raw/table_2.xlsx")
+
+graph_table_1 <- table_1 %>%
+  pivot_longer(cols = c("Act 135 Respondents", "Total Respondents", "Phila.", "Phila. Homeowners")) %>%
+  filter(name != "Total Respondents" & name != "Phila.") 
+
+table_1 <- ggplot(graph_table_1, aes(fill = name, y = value, x = Race)) +
+  geom_bar(position = position_dodge(), stat = "identity") +
+  scale_fill_manual(name = "", values = c("#ef476f","#2c4263")) +
+  ylab("Percent") +
+  scale_y_continuous(breaks = seq(0,45,by = 5)) +
+  theme_minimal() +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_text(size = 16),
+        axis.title.y = element_text(size = 14),
+        axis.text.y = element_text(size = 12),
+        panel.grid.minor = element_line(colour = 'transparent'),
+        panel.grid.major.x  = element_blank(),
+        legend.margin = margin(0.3, 0.3, 0.3, 0.3, "cm"),
+        plot.margin = margin(0.4, 0.4, 0.4, 0.4, "cm"),
+        legend.text = element_text(size=11),
+        legend.position = "bottom")
+
+graph_table_2 <- table_2 %>%
+  pivot_longer(cols = c("Act 135 Petitions", "Philadelphia"))
+
+table_2 <- ggplot(graph_table_2, aes(fill = name, y = value, x = Category)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  scale_fill_manual(name = "", values = c("#ef476f","#2c4263")) +
+  theme_minimal() +
+  scale_y_continuous(breaks = seq(0,75,by = 5)) +
+  ylab("Percent") +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_text(size = 16),
+        axis.title.y = element_text(size = 14),
+        axis.text.y = element_text(size = 12),
+        panel.grid.minor = element_line(colour = 'transparent'),
+              legend.margin = margin(0.3, 0.3, 0.3, 0.3, "cm"),
+              plot.margin = margin(0.4, 0.4, 0.4, 0.4, "cm"),
+              legend.text = element_text(size=11),
+        panel.grid.major.x  = element_blank(),
+        legend.position = "bottom")
+
+ggsave('plots/table_1.jpeg', table_1, scale = 1, width = 10, units = "in", dpi = 500, bg = "transparent")
+ggsave('plots/table_2.jpeg', table_2, scale = 1, width = 10, units = "in", dpi = 500, bg = "transparent")
+
+
+bgs21.2 <- bgs21 %>%
+  mutate(majority_nonwhite = ifelse(pct_non_white > 50, "Non-White","White"))
+
+
+bgs21.2$majority_nonwhite <- factor(bgs21.2$majority_nonwhite, ordered = TRUE, levels = c("Non-White", "White"
+))
+
+all_points_category <- ggplot(bgs21.2) +
+  geom_sf(aes(fill=majority_nonwhite), alpha = .7, stroke = .3) +
+  geom_sf(data = all_properties_geocoded_flags,
+          size = .5,
+          color = "#ffd166") +
+  scale_fill_manual(name = "Majority", values = c("#2c4263", "#ef476f")) +
+  labs(title = "Philadelphia Act 135 Properties and\nWhether Block Group is Majority Non-White",
+       caption = "American Community Survey, 2021") +
+  theme_void() +
+  theme(panel.grid.major = element_line(colour = 'transparent'),
+        legend.margin = margin(0.3, 0.3, 0.3, 0.3, "cm"),
+        plot.margin = margin(0.4, 0.4, 0.4, 0.4, "cm"),
+        plot.title =element_text(family="AppleGothic", size=15, hjust = .5),
+        plot.subtitle = element_text(family="AppleGothic", size=10, hjust = .5),
+        plot.caption = element_text(family="AppleGothic", size=8, hjust = .5),
+        legend.text = element_text(family="AppleGothic", size=8, hjust = .5),
+        legend.title = element_text(family="AppleGothic", size=8, hjust = .5),
+        )
+
+all_points_category
+
+ggsave('plots/all_points_category.jpeg', all_points_category, scale = 1, width = 10, units = "in", dpi = 500, bg = "transparent")
+
+
+

@@ -1,0 +1,13 @@
+name: Act_135_Philly
+title: Act_135_Philly
+username: pclapps
+account: pclapps
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 11572608
+bundleId: 8409856
+url: https://pclapps.shinyapps.io/Act_135_Philly/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: old.R|static_maps_analytics.R|plots
