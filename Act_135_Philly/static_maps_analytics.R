@@ -1,3 +1,5 @@
+#NOTE: This file is for updating the static maps and the analytics for the PDF report!
+
 
 #--Setup--
 
@@ -18,6 +20,8 @@ library(tidygeocoder)
 library(geojsonio)
 
 #----NEW - Read Data----
+
+setwd("Act_135_Philly")
 
 raw_docket <- read_xlsx('raw/Act-135-Cases_2024.02.07.xlsx')
 raw_opa <- read.csv('raw2/opa_properties_public.csv', colClasses = c("parcel_number" = "character"))
@@ -181,42 +185,53 @@ props_with_names <- all_properties_geocoded_flags %>%
 single_opa <- all_properties_geocoded_flags %>%
   distinct(opanum, .keep_all = TRUE)
 
-#post-amendments
+# Get the number of cases filed post-amendments
 all_properties_geocoded_flags %>%
   filter(as.Date(dfiled) <= '2015-01-01') %>%
   st_drop_geometry() %>%
   summarise(count = n())
 
 #QUICK STATS
+
+# Count involving heirs
 sum(single_opa$heir)
+
+# Count involving a person and a corporate entity
 sum(single_opa$person_and_other)
+
+# Count involving only a person/people
 sum(single_opa$person_no_other)
+
+# Different count of heirs involved
 sum(all_properties_geocoded_flags$heir)
+
 
 all_properties_geog <- single_opa %>%
   st_join(cds) %>%
   st_join(bgs21) %>%
   left_join(drr_raw, by = "GEOID")
 
-#District grouping
+# City Council District grouping
 all_properties_geog %>%
   group_by(DISTRICT) %>%
   st_drop_geometry() %>%
   summarise(count = n())
 
+# Grouping by demographics and creating a flag for majority white, non-white, and black block groups
 all_properties_geog2 <- all_properties_geog %>%
   mutate(majority_white = ifelse(pct_non_white < 50, 1,0),
          majority_non_white = ifelse(pct_non_white >= 50,1,0),
          majority_black = ifelse(pct_black >= 50,1,0))
 
-#Block group composition analysis
+# Block group composition analysis (percent of filings in a given demographic grouping)
 sum(all_properties_geog2$majority_white, na.rm = TRUE) / nrow(all_properties_geog2) * 100
 sum(all_properties_geog2$majority_non_white, na.rm = TRUE) / nrow(all_properties_geog2) * 100
 sum(all_properties_geog2$majority_black, na.rm = TRUE) / nrow(all_properties_geog2) * 100
 
 all_properties_geog$dfiled <- as.Date(all_properties_geog$dfiled)
 
-#DRR composition analysis
+# DRR composition analysis
+# Based on dataset from the Reinvestment Fund (Displacement Risk Ratio)
 all_properties_geog %>%
   distinct(opanum, .keep_all = TRUE) %>%
   #filter(dfiled < "2023-01-01") %>%
@@ -224,13 +239,12 @@ all_properties_geog %>%
   adorn_totals() %>%
   adorn_pct_formatting()
 
-#petitioner analysis
+# petitioner analysis
 all_properties_petitioner <- all_properties_geog2 %>%
   select(dfiled, petitioner, DISTRICT,resp_human) %>%
   mutate(turco = str_detect(petitioner, "SCIOLI"),
          pcdc = str_detect(petitioner, "PHILADELPHIA COMMUNITY DEVELOPMENT COALITION"),
          big_2 = ifelse(turco == TRUE | pcdc == TRUE, "ST or PCDC", "Other"))
-
 
 all_properties_petitioner2 <- all_properties_geocoded_flags %>%
   mutate(turco = str_detect(petitioner, "SCIOLI"),
@@ -291,51 +305,6 @@ predicted_eths %>%
   tabyl(race) %>%
   adorn_totals() %>%
   adorn_pct_formatting() 
-
-#-----create html labels for mapping------
-
-content <- paste("<p> Address:", all_properties_geocoded_flags$address, "<br>",
-                 "OPA Number:", all_properties_geocoded_flags$opanum, "<br>",
-                 "Petitioner:", all_properties_geocoded_flags$petitioner, "<br>",
-                 "Respondent:", all_properties_geocoded_flags$respondent, "<br>",
-                 "Respondent Entity Type:", all_properties_geocoded_flags$resp_entity, "<br>",
-                 "# of Properties:", all_properties_geocoded_flags$number_props, "<br>") %>%
-  lapply(htmltools::HTML)
-
-content2 <- paste("<p> Address:", all_properties_geocoded_flags$address, "<br>",
-                  "OPA Number:", all_properties_geocoded_flags$opanum, "<br>",
-                  "Petitioner:", all_properties_geocoded_flags$petitioner, "<br>",
-                  "Respondent:", all_properties_geocoded_flags$respondent, "<br>",
-                  "Respondent Entity Type:", all_properties_geocoded_flags$resp_entity, "<br>",
-                  "# of Properties:", all_properties_geocoded_flags$number_props, "<br>",
-                  "Predicted Ethnicity:", all_properties_geocoded_flags$race) %>%
-  lapply(htmltools::HTML)
-
-
-bgs21$DRR2122C <- factor(bgs21$DRR2122C, ordered = TRUE, levels = c("Insufficient Data",
-                                                                    "Below Area Average",
-                                                                    "0.0 - 0.5",
-                                                                    "0.5 - 1.0",
-                                                                    "1.0 - 1.5",
-                                                                    "1.5 - 2.0",
-                                                                    "2.0 - 2.5",
-                                                                    "2.5 - 3.0",
-                                                                    "3.0 or Above"
-))
-
-bgs21$DRR1516C <- factor(bgs21$DRR1516C, ordered = TRUE, levels = c("Insufficient Data",
-                                                                    "Below Area Average",
-                                                                    "0.0 - 0.5",
-                                                                    "0.5 - 1.0",
-                                                                    "1.0 - 1.5",
-                                                                    "1.5 - 2.0",
-                                                                    "2.0 - 2.5",
-                                                                    "2.5 - 3.0",
-                                                                    "3.0 or Above"
-))
-
-all_properties_geocoded_flags <- all_properties_geocoded_flags %>%
-  mutate(resp_human = ifelse(resp_human == 1, "Human", "Non-human"))
 
 
 # -----Static Maps------

@@ -1,3 +1,5 @@
+#NOTE: This file is for updating the points on the interactive map!
+
 
 #--Setup--
 
@@ -9,17 +11,24 @@ library(tidyr)
 library(leaflet)
 library(lubridate)
 library(sf)
-# library(rethnicity)
+library(rethnicity)
 library(shiny)
 library(shinythemes)
 library(shinyjs)
 library(janitor) 
 library(tidygeocoder)
 
+#NOTE: To update, uncomment this code. Recomment before deploying the app. Keyboard shortcut on Mac: Cmd + Shift + C
+
+setwd("Act_135_Philly")
+
 # 
-# #----NEW - Read Data----
+# #---- Read Data----
 # 
+# #Change name of this file to your new date:
 # raw_docket <- read_xlsx('raw/Act-135-Cases_2024.02.07.xlsx')
+# 
+# #Leave this one as is:
 # raw_opa <- read.csv('raw2/opa_properties_public.csv', colClasses = c("parcel_number" = "character"))
 # 
 # docket_2 <- raw_docket %>%
@@ -62,6 +71,11 @@ library(tidygeocoder)
 # docket_missing_coords$City <- "Philadelphia"
 # docket_missing_coords$State <- "PA"
 # 
+# # You may need to take a look at the properties that aren't matching up and see if there are any single digit streets
+# # The docket adds a zero and this impedes the geocoding
+# # The first number in the code below is the row number; 10 is the column number
+# # When you add new data, the row numbers might change...
+# 
 # docket_missing_coords[49,10] = "323 W GIRARD AVE"
 # docket_missing_coords[27,10] = "1641 N 2ND STREET"
 # docket_missing_coords[28,10] = "830 N 4TH STREET"
@@ -89,39 +103,18 @@ library(tidygeocoder)
 # 
 # # FINALLY!
 # 
+# # This dataframe has ALL docket entries
 # geocoded_docket_opa <- docket_4 %>%
 #   rbind(docket_geocode2) %>%
 #   separate(SING_RESP, ",", into = c("LAST", "FIRST"), remove = FALSE) %>%
 #   mutate(FIRST = trimws(FIRST),
 #          LAST = trimws(LAST))
 # 
+# # This dataframe has all docket entries where there is a PERSON involved
 # geocoded_docket_opa_withnames <- geocoded_docket_opa %>%
 #   filter(!is.na(FIRST)) %>%
 #   distinct(SING_RESP, .keep_all = TRUE) %>%
 #   distinct(opanum, .keep_all = TRUE)
-# 
-# ##-----NAME ANALYSIS -----
-# 
-# geocoded_docket_opa_withnames[48,7] <- "O'MALLEY"
-# geocoded_docket_opa_withnames[177,7] <- "O'CONNELL"
-# geocoded_docket_opa_withnames[368,7] <- "KELLAM"
-# geocoded_docket_opa_withnames[100,7] <- "MICHAEL"
-# geocoded_docket_opa_withnames[117,7] <- "HOWARD"
-# 
-# # get rethnicity predictions:
-# lastnames <- geocoded_docket_opa_withnames$LAST
-# firstnames <- geocoded_docket_opa_withnames$FIRST
-# predicted_eths <<- predict_ethnicity(firstnames = firstnames, lastnames = lastnames,
-#                                      method = "fullname")
-# 
-# predicted_eths <- predicted_eths %>%
-#   rename(c("FIRST" = "firstname", "LAST" = "lastname"))
-# 
-# # join back together!
-# all_properties_geocoded <- geocoded_docket_opa %>%
-#   left_join(predicted_eths, by = c("FIRST", "LAST"))
-# 
-# # get a count of how many names are paired with an LLC, have multiple resp, etc.
 # 
 # #-----Clean up Act 135 Property Data and Add Flags-----
 # 
@@ -145,7 +138,10 @@ library(tidygeocoder)
 #     person_and_other = ifelse(resp_human == 1 & (city == 1 | corporate ==1 | religious ==1 | nonprof ==1),
 #                               1, 0))
 # 
+# # Delete old file first!
 # st_write(all_properties_geocoded_flags, "processed/all_properties_geocoded_flags.geojson")
+# 
+# # Now, comment everything out again, before deploying the app.
 
 #----START HERE!----
 
