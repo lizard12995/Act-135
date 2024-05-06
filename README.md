@@ -13,7 +13,9 @@
 - Download OPA data as CSV from [here](https://opendataphilly.org/datasets/philadelphia-properties-and-assessment-history/) and add to /raw2 folder
   - Make sure it's called "opa_properties_public.csv"
 - Un-comment the code in lines 19 - 148 in global.R and re-run with new data
+  - Make manual changes to addresses that did not match with OPA data so that you can run the geocoding without a problem.
+  - See any notes in code for other things you may need to address.
 - Re-comment the code!
 - Open the server.R file
 - Deploy the shiny app with rsconnect using the blue button! Be sure to deploy to pclapps. Hit "publish" to deploy the app.
-- Be sure to NOT include raw2 when you push your code to GitHub
+- Be sure to NOT include raw2 when you push your code to GitHub.
